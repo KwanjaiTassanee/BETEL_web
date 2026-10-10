@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f5a3a">
+<title>สมุดขายพลู</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--leaf:#1f5a3a;--leaf2:#2f7d4f;--mist:#e9f1e6;--paper:#fbfcf9;--ink:#1c2a22;--mute:#5f7266;--line:#d5e0d2;--lime:#b3322b;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:'Sarabun',system-ui,sans-serif;background:var(--paper);color:var(--ink);font-size:17px;line-height:1.45;padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+header{background:var(--leaf);color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+header h1{font-size:20px;margin:0}
+header small{opacity:.85;display:block;font-size:14px}
+button,input,select,textarea{font:inherit;color:inherit}
+.gear{background:none;border:0;color:#fff;font-size:24px;padding:6px 10px}
+main{max-width:640px;margin:0 auto;padding:14px}
+section{display:none}section.on{display:block}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+h2{font-size:18px;margin:0 0 10px}
+label{display:block;font-weight:600;margin:10px 0 4px}
+input,select,textarea{width:100%;padding:12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;font-size:18px}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:3px solid #8fc7a2;outline-offset:1px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg button{padding:14px;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-weight:600;font-size:18px}
+.seg button.on{background:var(--leaf);color:#fff;border-color:var(--leaf)}
+.btn{width:100%;padding:15px;border:0;border-radius:12px;background:var(--leaf);color:#fff;font-weight:700;font-size:19px;margin-top:14px}
+.btn.alt{background:var(--mist);color:var(--leaf);margin-top:8px}
+.btn[disabled]{opacity:.55}
+.date{font-size:22px;font-weight:700}
+.wx{background:var(--mist);border-radius:10px;padding:10px 12px;margin-top:8px;color:var(--leaf)}
+.total{font-size:30px;font-weight:700;color:var(--leaf);text-align:right}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--mist);border-radius:12px;padding:12px}
+.stat b{display:block;font-size:26px;color:var(--leaf)}
+.stat span{color:var(--mute);font-size:14px}
+.stat.big{grid-column:1/-1}
+.row{border-bottom:1px solid var(--line);padding:10px 0;display:flex;justify-content:space-between;gap:10px}
+.row:last-child{border:0}
+.row small{color:var(--mute);display:block}
+.del{background:none;border:0;color:var(--lime);font-size:14px;padding:4px 0}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{padding:8px 4px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.chip{padding:8px 14px;border-radius:99px;border:1.5px solid var(--line);background:#fff}
+.chip.on{background:var(--leaf2);color:#fff;border-color:var(--leaf2)}
+.chartbox{position:relative;height:300px}
+nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{background:none;border:0;padding:10px 0 8px;color:var(--mute);font-size:13px}
+nav button b{display:block;font-size:22px}
+nav button.on{color:var(--leaf);font-weight:700}
+.msg{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom,0px));background:var(--ink);color:#fff;padding:10px 18px;border-radius:99px;display:none;z-index:9;max-width:90%}
+.hint{color:var(--mute);font-size:14px}
+dialog{border:0;border-radius:16px;padding:16px;width:min(92vw,420px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.empty{color:var(--mute);text-align:center;padding:20px 0}
+@media print{header,nav,.noprint,.msg{display:none!important}section{display:none!important}section#sum{display:block!important}body{padding:0}.card{break-inside:avoid}}
+</style>
+</head>
+<body>
+<header><div><h1>🌿 สมุดขายพลู</h1><small id="hd"></small></div><button class="gear" id="gear" aria-label="ตั้งค่า">⚙️</button></header>
+<main>
+
+<section id="add" class="on">
+  <div class="card">
+    <div class="date" id="today"></div>
+    <div class="hint">วันที่บันทึกให้อัตโนมัติ แก้ไขไม่ได้</div>
+    <div class="wx" id="wx">กำลังดึงสภาพอากาศ…</div>
+  </div>
+  <div class="card">
+    <label>ขายเป็น</label>
+    <div class="seg"><button id="uKg" class="on">กิโลกรัม (กก.)</button><button id="uGam">กำ</button></div>
+    <label id="qL">จำนวน (กก.)</label>
+    <input id="qty" type="number" inputmode="decimal" min="0" step="any" placeholder="0">
+    <label id="pL">ราคาต่อ กก. (บาท)</label>
+    <input id="price" type="number" inputmode="decimal" min="0" step="any" placeholder="0">
+    <div class="total" id="tot">฿0</div>
+    <label>ผู้ซื้อ / แหล่งขาย (ไม่บังคับ)</label>
+    <input id="buyer" placeholder="เช่น แม่ค้าตลาดสด">
+    <label>หมายเหตุ (ไม่บังคับ)</label>
+    <textarea id="note" rows="2"></textarea>
+    <button class="btn" id="save">บันทึกการขาย</button>
+  </div>
+</section>
+
+<section id="his">
+  <div class="card"><h2>รายการของเดือนนี้</h2><div id="hisList"></div></div>
+</section>
+
+<section id="sum">
+  <div class="card noprint"><label style="margin-top:0">เลือกเดือน</label><select id="mSel"></select></div>
+  <div class="card">
+    <h2 id="sumT"></h2>
+    <div class="grid" id="sumG"></div>
+  </div>
+  <div class="card">
+    <h2>สภาพอากาศกับราคา <small class="hint">(ข้อมูลทุกเดือน)</small></h2>
+    <div id="wxT"></div>
+    <div class="hint" style="margin-top:6px">ราคาเฉลี่ยถ่วงน้ำหนัก = รายได้ ÷ จำนวนที่ขาย ยิ่งมีข้อมูลมาก ยิ่งเชื่อถือได้</div>
+  </div>
+  <div class="card noprint">
+    <h2>บันทึกเป็นไฟล์</h2>
+    <button class="btn alt" id="exMonth" style="margin-top:0">📄 ไฟล์ Excel (CSV) เดือนที่เลือก</button>
+    <button class="btn alt" id="exAll">📄 ไฟล์ Excel (CSV) ทั้งหมด</button>
+    <button class="btn alt" id="exPdf">🖨️ บันทึกสรุปเป็น PDF</button>
+  </div>
+</section>
+
+<section id="cht">
+  <div class="card">
+    <h2>เปรียบเทียบเดือน (เลือกได้สูงสุด 3 เดือน)</h2>
+    <div class="chips" id="chips"></div>
+    <div class="seg" style="margin-bottom:8px">
+      <select id="metric"><option value="total">รายได้ (บาท)</option><option value="kg">น้ำหนัก (กก.)</option><option value="gam">จำนวน (กำ)</option><option value="n">จำนวนครั้งที่ขาย</option></select>
+      <select id="mode"><option value="cum">สะสมตลอดเดือน</option><option value="day">รายวัน</option></select>
+    </div>
+    <div class="chartbox"><canvas id="cv"></canvas></div>
+    <button class="btn alt" id="exPng">🖼️ บันทึกกราฟเป็นรูป</button>
+  </div>
+</section>
+</main>
+
+<nav>
+  <button data-t="add" class="on"><b>✍️</b>บันทึก</button>
+  <button data-t="his"><b>📋</b>รายการ</button>
+  <button data-t="sum"><b>📊</b>สรุป</button>
+  <button data-t="cht"><b>📈</b>กราฟ</button>
+</nav>
+<div class="msg" id="msg"></div>
+
+<dialog id="dlg">
+  <h2>ตั้งค่า</h2>
+  <label>ลิงก์ Apps Script (Web app URL)</label>
+  <input id="cUrl" placeholder="https://script.google.com/macros/s/AKfycbzGkMRQD8oyUvH0p5yJco1EVIdC4VQ5xLWVcSCFjubKJ2oRg4MZH_Hu_M3zGdBJAFRm/exec">
+  <label>รหัส PIN</label>
+  <input id="cPin" type="password" autocomplete="current-password">
+  <label>พิกัดสวน (เพื่อดูสภาพอากาศ)</label>
+  <div class="seg"><input id="cLat" inputmode="decimal" placeholder="ละติจูด"><input id="cLon" inputmode="decimal" placeholder="ลองจิจูด"></div>
+  <button class="btn alt" id="geo">📍 ใช้ตำแหน่งที่ฉันอยู่ตอนนี้</button>
+  <button class="btn" id="cSave">บันทึกการตั้งค่า</button>
+  <button class="btn alt" id="cClose">ปิด</button>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const TS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const COL = ['#1f5a3a', '#d98a1f', '#3a7ca5'];
+const ld = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+const sv = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+
+let cfg = Object.assign({ url: '', pin: '', lat: 7.0086, lon: 100.4747 }, ld('cfg'));
+let rows = ld('rows') || [], unit = 'kg', W = null, chart = null, chartMonths = [];
+
+const todayISO = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+const fmtD = d => `${+d.slice(8)} ${TS[+d.slice(5, 7) - 1]} ${+d.slice(0, 4) + 543}`;
+const monthName = ym => `${TH[+ym.slice(5) - 1]} ${+ym.slice(0, 4) + 543}`;
+const n0 = x => (+x || 0).toLocaleString('th-TH', { maximumFractionDigits: 1 });
+const baht = x => '฿' + (+x || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 });
+const uTxt = u => u === 'kg' ? 'กก.' : 'กำ';
+
+function toast(t) { const m = $('#msg'); m.textContent = t; m.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => m.style.display = 'none', 2600); }
+
+async function api(action, extra = {}) {
+  if (!cfg.url || !cfg.pin) { $('#dlg').showModal(); throw new Error('กรุณาตั้งค่าก่อน'); }
+  const r = await fetch(cfg.url, { method: 'POST', body: JSON.stringify(Object.assign({ pin: cfg.pin, action }, extra)) });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'เกิดข้อผิดพลาด');
+  return j;
+}
+
+async function load() {
+  try {
+    const j = await api('list');
+    rows = j.rows.map(r => ({ ...r, qty: +r.qty, price: +r.price, total: +r.total, date: String(r.date), time: String(r.time) }));
+    sv('rows', rows);
+  } catch (e) { if (cfg.url) toast('ใช้ข้อมูลที่เก็บไว้ในเครื่อง: ' + e.message); }
+  renderAll();
+}
+
+/* ---------- สภาพอากาศ ---------- */
+const wDesc = c => c === 0 ? '☀️ แจ่มใส' : c <= 3 ? '⛅ มีเมฆ' : c <= 48 ? '🌫️ หมอก' : (c <= 67 || (c >= 80 && c <= 82)) ? '🌧️ ฝนตก' : c >= 95 ? '⛈️ พายุฝน' : '☁️ อื่นๆ';
+async function getWeather() {
+  try {
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${cfg.lat}&longitude=${cfg.lon}&current=temperature_2m,relative_humidity_2m,weather_code&daily=precipitation_sum&timezone=Asia%2FBangkok&forecast_days=1`;
+    const j = await (await fetch(u)).json();
+    W = { temp: j.current.temperature_2m, humidity: j.current.relative_humidity_2m, rain: j.daily.precipitation_sum[0], weather: wDesc(j.current.weather_code) };
+    $('#wx').textContent = `${W.weather} · ${W.temp}°C · ความชื้น ${W.humidity}% · ฝนวันนี้ ${W.rain} มม.`;
+  } catch (e) { W = null; $('#wx').textContent = 'ดึงสภาพอากาศไม่ได้ (จะบันทึกการขายโดยไม่มีข้อมูลอากาศ)'; }
+}
+
+/* ---------- ฟอร์มบันทึก ---------- */
+function setUnit(u) {
+  unit = u; $('#uKg').classList.toggle('on', u === 'kg'); $('#uGam').classList.toggle('on', u === 'gam');
+  $('#qL').textContent = `จำนวน (${uTxt(u)})`; $('#pL').textContent = `ราคาต่อ ${uTxt(u)} (บาท)`; calc();
+}
+const calc = () => $('#tot').textContent = baht($('#qty').value * $('#price').value);
+
+async function save() {
+  const qty = +$('#qty').value, price = +$('#price').value;
+  if (!(qty > 0) || !(price > 0)) return toast('กรอกจำนวนและราคาก่อน');
+  const b = $('#save'); b.disabled = true; b.textContent = 'กำลังบันทึก…';
+  try {
+    await api('add', { data: { unit, qty, price, buyer: $('#buyer').value, note: $('#note').value, ...(W || {}) } });
+    ['qty', 'price', 'buyer', 'note'].forEach(i => $('#' + i).value = ''); calc();
+    toast('บันทึกแล้ว ✓'); await load();
+  } catch (e) { toast(e.message); }
+  b.disabled = false; b.textContent = 'บันทึกการขาย';
+}
+
+/* ---------- รายการ ---------- */
+function renderHis() {
+  const ym = todayISO().slice(0, 7), rs = rows.filter(r => r.date.startsWith(ym)).reverse();
+  $('#hisList').innerHTML = rs.length ? rs.map(r => `<div class="row"><div><b>${fmtD(r.date)}</b> ${r.time}
+    <small>${n0(r.qty)} ${uTxt(r.unit)} × ${n0(r.price)} บาท${r.buyer ? ' · ' + r.buyer : ''}</small>
+    <small>${r.weather || 'ไม่มีข้อมูลอากาศ'}${r.temp !== '' ? ' · ' + r.temp + '°C' : ''}${r.note ? ' · ' + r.note : ''}</small>
+    <button class="del" data-id="${r.id}">ลบรายการนี้</button></div><b>${baht(r.total)}</b></div>`).join('') : '<div class="empty">ยังไม่มีรายการเดือนนี้</div>';
+}
+
+/* ---------- สรุป ---------- */
+const months = () => { const s = new Set(rows.map(r => r.date.slice(0, 7))); s.add(todayISO().slice(0, 7)); return [...s].sort().reverse(); };
+function stats(rs) {
+  const o = { n: rs.length, kg: 0, gam: 0, total: 0 };
+  rs.forEach(r => { o[r.unit] += r.qty; o.total += r.total; }); return o;
+}
+function renderSum() {
+  const sel = $('#mSel'), cur = sel.value; sel.innerHTML = months().map(m => `<option value="${m}">${monthName(m)}</option>`).join('');
+  sel.value = cur && months().includes(cur) ? cur : months()[0];
+  const ym = sel.value, s = stats(rows.filter(r => r.date.startsWith(ym)));
+  $('#sumT').textContent = 'สรุป ' + monthName(ym);
+  $('#sumG').innerHTML = `<div class="stat big"><span>รายได้รวม</span><b>${baht(s.total)}</b></div>
+    <div class="stat"><span>ขายไปกี่ครั้ง</span><b>${s.n}</b></div>
+    <div class="stat"><span>น้ำหนักรวม</span><b>${n0(s.kg)} กก.</b></div>
+    <div class="stat"><span>ขายเป็นกำ</span><b>${n0(s.gam)} กำ</b></div>
+    <div class="stat"><span>เฉลี่ยต่อครั้ง</span><b>${baht(s.n ? s.total / s.n : 0)}</b></div>`;
+  const g = {}; rows.forEach(r => { const k = r.weather || 'ไม่มีข้อมูล'; (g[k] = g[k] || []).push(r); });
+  const avg = (rs, u) => { const x = rs.filter(r => r.unit === u), q = x.reduce((a, r) => a + r.qty, 0); return q ? n0(x.reduce((a, r) => a + r.total, 0) / q) : '-'; };
+  const keys = Object.keys(g);
+  $('#wxT').innerHTML = keys.length ? `<table><tr><th>อากาศ</th><th>ครั้ง</th><th>บาท/กก.</th><th>บาท/กำ</th></tr>${keys.map(k => `<tr><td>${k}</td><td>${g[k].length}</td><td>${avg(g[k], 'kg')}</td><td>${avg(g[k], 'gam')}</td></tr>`).join('')}</table>` : '<div class="empty">ยังไม่มีข้อมูล</div>';
+}
+
+/* ---------- กราฟ ---------- */
+function renderChips() {
+  const ms = months(); if (!chartMonths.length) chartMonths = ms.slice(0, 3);
+  $('#chips').innerHTML = ms.map(m => `<button class="chip ${chartMonths.includes(m) ? 'on' : ''}" data-m="${m}">${monthName(m)}</button>`).join('');
+}
+function renderChart() {
+  const metric = $('#metric').value, cum = $('#mode').value === 'cum', t = todayISO();
+  const ms = [...chartMonths].sort(), days = Array.from({ length: 31 }, (_, i) => i + 1);
+  const ds = ms.map((m, i) => {
+    const [y, mo] = m.split('-').map(Number), last = new Date(y, mo, 0).getDate();
+    let run = 0;
+    const data = days.map(d => {
+      if (d > last) return null;
+      const iso = `${m}-${String(d).padStart(2, '0')}`; if (iso > t) return null;
+      const rs = rows.filter(r => r.date === iso);
+      const v = metric === 'n' ? rs.length : metric === 'total' ? rs.reduce((a, r) => a + r.total, 0) : rs.filter(r => r.unit === metric).reduce((a, r) => a + r.qty, 0);
+      run += v; return cum ? run : v;
+    });
+    return { label: monthName(m), data, borderColor: COL[i], backgroundColor: COL[i], tension: .25, pointRadius: 2, borderWidth: 3 };
+  });
+  if (chart) chart.destroy();
+  chart = new Chart($('#cv'), { type: 'line', data: { labels: days, datasets: ds },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'bottom' } }, scales: { x: { title: { display: true, text: 'วันที่' } } } },
+    plugins: [{ id: 'bg', beforeDraw: c => { const x = c.ctx; x.save(); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.restore(); } }] });
+}
+
+/* ---------- ส่งออกไฟล์ ---------- */
+function dl(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+function csv(rs, name) {
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const h = ['วันที่', 'เวลา', 'หน่วย', 'จำนวน', 'ราคาต่อหน่วย', 'รวมเงิน', 'ผู้ซื้อ', 'หมายเหตุ', 'อุณหภูมิ(°C)', 'ความชื้น(%)', 'ฝน(มม.)', 'สภาพอากาศ'];
+  const lines = [h.map(q).join(',')].concat(rs.map(r => [r.date, r.time, uTxt(r.unit), r.qty, r.price, r.total, r.buyer, r.note, r.temp, r.humidity, r.rain, r.weather].map(q).join(',')));
+  dl(new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }), name);
+}
+
+/* ---------- ตั้งค่า / ปุ่ม ---------- */
+function renderAll() { renderHis(); renderSum(); renderChips(); renderChart(); }
+function tab(t) {
+  document.querySelectorAll('section').forEach(s => s.classList.toggle('on', s.id === t));
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  if (t === 'cht') renderChart(); window.scrollTo(0, 0);
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => tab(b.dataset.t));
+$('#uKg').onclick = () => setUnit('kg'); $('#uGam').onclick = () => setUnit('gam');
+$('#qty').oninput = $('#price').oninput = calc;
+$('#save').onclick = save;
+$('#mSel').onchange = renderSum;
+$('#metric').onchange = $('#mode').onchange = renderChart;
+$('#chips').onclick = e => {
+  const m = e.target.dataset.m; if (!m) return;
+  if (chartMonths.includes(m)) chartMonths = chartMonths.filter(x => x !== m);
+  else if (chartMonths.length >= 3) return toast('เลือกได้สูงสุด 3 เดือน');
+  else chartMonths.push(m);
+  renderChips(); renderChart();
+};
+$('#hisList').onclick = async e => {
+  const id = e.target.dataset.id; if (!id || !confirm('ลบรายการนี้ใช่ไหม?')) return;
+  try { await api('delete', { id }); toast('ลบแล้ว'); load(); } catch (er) { toast(er.message); }
+};
+$('#exMonth').onclick = () => { const m = $('#mSel').value; csv(rows.filter(r => r.date.startsWith(m)), `ขายพลู_${m}.csv`); };
+$('#exAll').onclick = () => csv(rows, `ขายพลู_ทั้งหมด_${todayISO()}.csv`);
+$('#exPdf').onclick = () => window.print();
+$('#exPng').onclick = () => { if (chart) dl(new Blob([Uint8Array.from(atob(chart.toBase64Image('image/png', 1).split(',')[1]), c => c.charCodeAt(0))], { type: 'image/png' }), `กราฟขายพลู_${todayISO()}.png`); };
+$('#gear').onclick = () => { $('#cUrl').value = cfg.url; $('#cPin').value = cfg.pin; $('#cLat').value = cfg.lat; $('#cLon').value = cfg.lon; $('#dlg').showModal(); };
+$('#cClose').onclick = () => $('#dlg').close();
+$('#cSave').onclick = () => {
+  cfg = { url: $('#cUrl').value.trim(), pin: $('#cPin').value, lat: +$('#cLat').value || cfg.lat, lon: +$('#cLon').value || cfg.lon };
+  sv('cfg', cfg); $('#dlg').close(); getWeather(); load();
+};
+$('#geo').onclick = () => navigator.geolocation ? navigator.geolocation.getCurrentPosition(p => { $('#cLat').value = p.coords.latitude.toFixed(4); $('#cLon').value = p.coords.longitude.toFixed(4); }, () => toast('ไม่ได้รับอนุญาตใช้ตำแหน่ง')) : toast('เครื่องนี้ไม่รองรับ');
+
+$('#today').textContent = fmtD(todayISO());
+$('#hd').textContent = 'บันทึกโดยเจ้าของสวน';
+getWeather(); renderAll();
+if (cfg.url && cfg.pin) load(); else setTimeout(() => $('#dlg').showModal(), 300);
+</script>
+</body>
+</html>
