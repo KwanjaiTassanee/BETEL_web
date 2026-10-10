@@ -59,12 +59,13 @@ nav button.on{color:var(--leaf);font-weight:700;border-bottom-color:var(--leaf)}
 .hint{color:var(--mute);font-size:14px}
 dialog{border:0;border-radius:16px;padding:16px;width:min(92vw,420px)}
 dialog::backdrop{background:rgba(0,0,0,.45)}
+.day{display:flex;justify-content:space-between;background:var(--mist);color:var(--leaf);font-weight:700;border-radius:8px;padding:6px 10px;margin:12px 0 2px}.day:first-child{margin-top:0}
 .empty{color:var(--mute);text-align:center;padding:20px 0}
 @media print{header,nav,.noprint,.msg{display:none!important}section{display:none!important}section#sum{display:block!important}body{padding:0}.card{break-inside:avoid}}
 </style>
 </head>
 <body>
-<header><div><h1>🌿 บันทึกการขายพลูท่าแค</h1><small id="hd"></small></div></header>
+<header><div><h1>🌿 สมุดขายพลู</h1><small id="hd"></small></div></header>
 <nav>
   <button data-t="add" class="on"><b>✍️</b>บันทึก</button>
   <button data-t="his"><b>📋</b>รายการ</button>
@@ -98,7 +99,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 </section>
 
 <section id="his">
-  <div class="card"><h2>รายการของเดือนนี้</h2><div id="hisList"></div></div>
+  <div class="card noprint"><label style="margin-top:0">เลือกเดือน (ตามวันที่ขาย)</label><select id="hSel"></select></div>
+  <div class="card"><div id="hisList"></div></div>
 </section>
 
 <section id="sum">
@@ -240,19 +242,29 @@ async function save() {
   try {
     await api('add', { data: { date: $('#dt').value, unit, qty, price, buyer: $('#buyer').value, note: $('#note').value, ...(W || {}) } });
     ['qty', 'price', 'buyer', 'note'].forEach(i => $('#' + i).value = ''); calc();
-    toast('บันทึกแล้ว ✓'); await load();
+    toast('บันทึกแล้ว ✓'); pendHM = $('#dt').value.slice(0, 7); await load();
   } catch (e) { toast(e.message); }
   b.disabled = false; b.textContent = 'บันทึกการขาย';
 }
 
 /* ---------- รายการ ---------- */
+let pendHM = null;
 function renderHis() {
-  const ym = todayISO().slice(0, 7), rs = rows.filter(r => r.date.startsWith(ym)).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
-  $('#hisList').innerHTML = rs.length ? rs.map(r => `<div class="row"><div><b>${fmtD(r.date)}</b> ${r.time}
-    <small>${n0(r.qty)} ${uTxt(r.unit)} × ${n0(r.price)} บาท${r.buyer ? ' · ' + r.buyer : ''}</small>
-    <small>${r.weather || 'ไม่มีข้อมูลอากาศ'}${r.temp !== '' ? ' · ' + r.temp + '°C' : ''}${r.note ? ' · ' + r.note : ''}</small>
-    ${r.place ? `<small>📍 ${r.place}</small>` : ''}
-    <button class="del" data-id="${r.id}">ลบรายการนี้</button></div><b>${baht(r.total)}</b></div>`).join('') : '<div class="empty">ยังไม่มีรายการเดือนนี้</div>';
+  const sel = $('#hSel'), ms = months(), cur = pendHM || sel.value; pendHM = null;
+  sel.innerHTML = ms.map(m => `<option value="${m}">${monthName(m)}</option>`).join('');
+  sel.value = ms.includes(cur) ? cur : ms[0];
+  // เรียงตามวันที่ขาย (ใหม่ → เก่า) แล้วจัดกลุ่มเป็นรายวัน
+  const rs = rows.filter(r => r.date.startsWith(sel.value))
+    .sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time) || String(b.id).localeCompare(String(a.id)));
+  const days = [...new Set(rs.map(r => r.date))];
+  $('#hisList').innerHTML = days.length ? days.map(d => {
+    const g = rs.filter(r => r.date === d);
+    return `<div class="day"><span>${fmtD(d)}</span><span>${baht(g.reduce((a, r) => a + r.total, 0))}</span></div>` + g.map(r => `<div class="row"><div><b>${n0(r.qty)} ${uTxt(r.unit)} × ${n0(r.price)} บาท</b>${r.time ? ' <span class="hint">' + r.time + '</span>' : ''}
+      <small>${r.buyer || ''}${r.buyer && r.note ? ' · ' : ''}${r.note || ''}</small>
+      <small>${r.weather || 'ไม่มีข้อมูลอากาศ'}${r.temp !== '' && r.temp != null ? ' · ' + r.temp + '°C' : ''}</small>
+      ${r.place ? `<small>📍 ${r.place}</small>` : ''}
+      <button class="del" data-id="${r.id}">ลบรายการนี้</button></div><b>${baht(r.total)}</b></div>`).join('');
+  }).join('') : '<div class="empty">ยังไม่มีรายการในเดือนนี้</div>';
 }
 
 /* ---------- สรุป ---------- */
@@ -325,6 +337,7 @@ $('#uKg').onclick = () => setUnit('kg'); $('#uGam').onclick = () => setUnit('gam
 $('#qty').oninput = $('#price').oninput = calc;
 $('#save').onclick = save;
 $('#mSel').onchange = renderSum;
+$('#hSel').onchange = renderHis;
 $('#metric').onchange = $('#mode').onchange = renderChart;
 $('#chips').onclick = e => {
   const m = e.target.dataset.m; if (!m) return;
