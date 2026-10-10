@@ -64,13 +64,15 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 </style>
 </head>
 <body>
-<header><div><h1>🌿 สมุดขายพลู</h1><small id="hd"></small></div><button class="gear" id="gear" aria-label="ตั้งค่า">⚙️</button></header>
+<header><div><h1>🌿 สมุดขายพลู</h1><small id="hd"></small></div></header>
 <main>
 
 <section id="add" class="on">
   <div class="card">
-    <div class="date" id="today"></div>
-    <div class="hint">วันที่บันทึกให้อัตโนมัติ แก้ไขไม่ได้</div>
+    <label style="margin-top:0">วันที่ขาย</label>
+    <input type="date" id="dt">
+    <div class="date" id="today" style="margin-top:8px"></div>
+    <div class="hint">เริ่มต้นเป็นวันนี้ แตะช่องเพื่อเลือกวันย้อนหลังจากปฏิทิน</div>
     <div class="wx" id="wx">กำลังดึงสภาพอากาศ…</div>
   </div>
   <div class="card">
@@ -109,6 +111,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <button class="btn alt" id="exMonth" style="margin-top:0">📄 ไฟล์ Excel (CSV) เดือนที่เลือก</button>
     <button class="btn alt" id="exAll">📄 ไฟล์ Excel (CSV) ทั้งหมด</button>
     <button class="btn alt" id="exPdf">🖨️ บันทึกสรุปเป็น PDF</button>
+    <a class="btn alt" id="openSheet" href="#" target="_blank" rel="noopener" style="display:none;text-align:center;text-decoration:none;box-sizing:border-box">📗 เปิด Google Sheet</a>
   </div>
 </section>
 
@@ -134,20 +137,13 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 </nav>
 <div class="msg" id="msg"></div>
 
-<dialog id="dlg">
-  <h2>ตั้งค่า</h2>
-  <label>ลิงก์ Apps Script (Web app URL)</label>
-  <input id="cUrl" placeholder="https://script.google.com/macros/s/AKfycbzGkMRQD8oyUvH0p5yJco1EVIdC4VQ5xLWVcSCFjubKJ2oRg4MZH_Hu_M3zGdBJAFRm/exec">
-  <label>รหัส PIN</label>
-  <input id="cPin" type="password" autocomplete="current-password">
-  <label>พิกัดสวน (เพื่อดูสภาพอากาศ)</label>
-  <div class="seg"><input id="cLat" inputmode="decimal" placeholder="ละติจูด"><input id="cLon" inputmode="decimal" placeholder="ลองจิจูด"></div>
-  <button class="btn alt" id="geo">📍 ใช้ตำแหน่งที่ฉันอยู่ตอนนี้</button>
-  <button class="btn" id="cSave">บันทึกการตั้งค่า</button>
-  <button class="btn alt" id="cClose">ปิด</button>
-</dialog>
 
 <script>
+/* ===== แก้ลิงก์ตรงนี้ ===== */
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzGkMRQD8oyUvH0p5yJco1EVIdC4VQ5xLWVcSCFjubKJ2oRg4MZH_Hu_M3zGdBJAFRm/exec';  // วางลิงก์ Web app ของ Apps Script (ลงท้าย /exec) ระหว่างเครื่องหมาย ' '
+const APP_PIN = '123456';          // รหัสเดียวกับ PIN ใน Code.gs
+const SHEET_URL = '';        // วางลิงก์ Google Sheet (ไม่บังคับ) ไว้ใช้กดเปิดดูข้อมูลดิบ
+/* ======================== */
 const $ = s => document.querySelector(s);
 const TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 const TS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
@@ -155,7 +151,7 @@ const COL = ['#1f5a3a', '#d98a1f', '#3a7ca5'];
 const ld = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 const sv = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 
-let cfg = Object.assign({ url: '', pin: '', lat: 7.0086, lon: 100.4747 }, ld('cfg'));
+let cfg = Object.assign({ lat: 7.0086, lon: 100.4747 }, ld('cfg'));
 let rows = ld('rows') || [], unit = 'kg', W = null, chart = null, chartMonths = [];
 
 const todayISO = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
@@ -168,8 +164,8 @@ const uTxt = u => u === 'kg' ? 'กก.' : 'กำ';
 function toast(t) { const m = $('#msg'); m.textContent = t; m.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => m.style.display = 'none', 2600); }
 
 async function api(action, extra = {}) {
-  if (!cfg.url || !cfg.pin) { $('#dlg').showModal(); throw new Error('กรุณาตั้งค่าก่อน'); }
-  const r = await fetch(cfg.url, { method: 'POST', body: JSON.stringify(Object.assign({ pin: cfg.pin, action }, extra)) });
+  if (!APPS_SCRIPT_URL || !APP_PIN) throw new Error('ยังไม่ได้ใส่ลิงก์/PIN ในไฟล์ index.html');
+  const r = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ pin: APP_PIN, action, ...extra }) });
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || 'เกิดข้อผิดพลาด');
   return j;
@@ -180,19 +176,40 @@ async function load() {
     const j = await api('list');
     rows = j.rows.map(r => ({ ...r, qty: +r.qty, price: +r.price, total: +r.total, date: String(r.date), time: String(r.time) }));
     sv('rows', rows);
-  } catch (e) { if (cfg.url) toast('ใช้ข้อมูลที่เก็บไว้ในเครื่อง: ' + e.message); }
+  } catch (e) { toast('ใช้ข้อมูลในเครื่อง: ' + e.message); }
   renderAll();
 }
 
 /* ---------- สภาพอากาศ ---------- */
 const wDesc = c => c === 0 ? '☀️ แจ่มใส' : c <= 3 ? '⛅ มีเมฆ' : c <= 48 ? '🌫️ หมอก' : (c <= 67 || (c >= 80 && c <= 82)) ? '🌧️ ฝนตก' : c >= 95 ? '⛈️ พายุฝน' : '☁️ อื่นๆ';
-async function getWeather() {
+const getPos = () => new Promise(res => {
+  const ok = (lat, lon) => { cfg.lat = lat; cfg.lon = lon; sv('cfg', cfg); res(true); };
+  if (!navigator.geolocation) return res(false);
+  navigator.geolocation.getCurrentPosition(p => ok(+p.coords.latitude.toFixed(4), +p.coords.longitude.toFixed(4)), () => res(false), { timeout: 8000, maximumAge: 6 * 3600 * 1000 });
+});
+async function getWeather(date) {
+  date = date || todayISO(); const isToday = date === todayISO(), my = (getWeather.n = (getWeather.n || 0) + 1);
+  $('#wx').textContent = 'กำลังดึงสภาพอากาศ…';
+  const gps = isToday ? await getPos() : true;
   try {
-    const u = `https://api.open-meteo.com/v1/forecast?latitude=${cfg.lat}&longitude=${cfg.lon}&current=temperature_2m,relative_humidity_2m,weather_code&daily=precipitation_sum&timezone=Asia%2FBangkok&forecast_days=1`;
-    const j = await (await fetch(u)).json();
-    W = { temp: j.current.temperature_2m, humidity: j.current.relative_humidity_2m, rain: j.daily.precipitation_sum[0], weather: wDesc(j.current.weather_code) };
-    $('#wx').textContent = `${W.weather} · ${W.temp}°C · ความชื้น ${W.humidity}% · ฝนวันนี้ ${W.rain} มม.`;
-  } catch (e) { W = null; $('#wx').textContent = 'ดึงสภาพอากาศไม่ได้ (จะบันทึกการขายโดยไม่มีข้อมูลอากาศ)'; }
+    let w, txt;
+    if (isToday) {
+      const u = `https://api.open-meteo.com/v1/forecast?latitude=${cfg.lat}&longitude=${cfg.lon}&current=temperature_2m,relative_humidity_2m,weather_code&daily=precipitation_sum&timezone=Asia%2FBangkok&forecast_days=1`;
+      const j = await (await fetch(u)).json();
+      w = { temp: j.current.temperature_2m, humidity: j.current.relative_humidity_2m, rain: j.daily.precipitation_sum[0], weather: wDesc(j.current.weather_code) };
+      txt = `${w.weather} · ${w.temp}°C · ความชื้น ${w.humidity}% · ฝนวันนี้ ${w.rain} มม.${gps ? '' : ' · (ใช้พิกัดที่จำไว้)'}`;
+    } else {
+      const ago = (new Date(todayISO()) - new Date(date)) / 864e5;
+      const host = ago <= 80 ? 'https://api.open-meteo.com/v1/forecast' : 'https://archive-api.open-meteo.com/v1/archive';
+      const u = `${host}?latitude=${cfg.lat}&longitude=${cfg.lon}&start_date=${date}&end_date=${date}&daily=weather_code,temperature_2m_mean,relative_humidity_2m_mean,precipitation_sum&timezone=Asia%2FBangkok`;
+      const d = (await (await fetch(u)).json()).daily;
+      if (!d || d.weather_code[0] == null) throw new Error('no data');
+      w = { temp: d.temperature_2m_mean[0], humidity: Math.round(d.relative_humidity_2m_mean[0]), rain: d.precipitation_sum[0], weather: wDesc(d.weather_code[0]) };
+      txt = `${w.weather} · เฉลี่ย ${w.temp}°C · ความชื้น ${w.humidity}% · ฝน ${w.rain} มม. (ของวันที่เลือก)`;
+    }
+    if (my !== getWeather.n) return;
+    W = w; $('#wx').textContent = txt;
+  } catch (e) { if (my !== getWeather.n) return; W = null; $('#wx').textContent = 'ดึงสภาพอากาศของวันนี้ไม่ได้ (จะบันทึกโดยไม่มีข้อมูลอากาศ)'; }
 }
 
 /* ---------- ฟอร์มบันทึก ---------- */
@@ -207,7 +224,7 @@ async function save() {
   if (!(qty > 0) || !(price > 0)) return toast('กรอกจำนวนและราคาก่อน');
   const b = $('#save'); b.disabled = true; b.textContent = 'กำลังบันทึก…';
   try {
-    await api('add', { data: { unit, qty, price, buyer: $('#buyer').value, note: $('#note').value, ...(W || {}) } });
+    await api('add', { data: { date: $('#dt').value, unit, qty, price, buyer: $('#buyer').value, note: $('#note').value, ...(W || {}) } });
     ['qty', 'price', 'buyer', 'note'].forEach(i => $('#' + i).value = ''); calc();
     toast('บันทึกแล้ว ✓'); await load();
   } catch (e) { toast(e.message); }
@@ -216,7 +233,7 @@ async function save() {
 
 /* ---------- รายการ ---------- */
 function renderHis() {
-  const ym = todayISO().slice(0, 7), rs = rows.filter(r => r.date.startsWith(ym)).reverse();
+  const ym = todayISO().slice(0, 7), rs = rows.filter(r => r.date.startsWith(ym)).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
   $('#hisList').innerHTML = rs.length ? rs.map(r => `<div class="row"><div><b>${fmtD(r.date)}</b> ${r.time}
     <small>${n0(r.qty)} ${uTxt(r.unit)} × ${n0(r.price)} บาท${r.buyer ? ' · ' + r.buyer : ''}</small>
     <small>${r.weather || 'ไม่มีข้อมูลอากาศ'}${r.temp !== '' ? ' · ' + r.temp + '°C' : ''}${r.note ? ' · ' + r.note : ''}</small>
@@ -309,18 +326,17 @@ $('#exMonth').onclick = () => { const m = $('#mSel').value; csv(rows.filter(r =>
 $('#exAll').onclick = () => csv(rows, `ขายพลู_ทั้งหมด_${todayISO()}.csv`);
 $('#exPdf').onclick = () => window.print();
 $('#exPng').onclick = () => { if (chart) dl(new Blob([Uint8Array.from(atob(chart.toBase64Image('image/png', 1).split(',')[1]), c => c.charCodeAt(0))], { type: 'image/png' }), `กราฟขายพลู_${todayISO()}.png`); };
-$('#gear').onclick = () => { $('#cUrl').value = cfg.url; $('#cPin').value = cfg.pin; $('#cLat').value = cfg.lat; $('#cLon').value = cfg.lon; $('#dlg').showModal(); };
-$('#cClose').onclick = () => $('#dlg').close();
-$('#cSave').onclick = () => {
-  cfg = { url: $('#cUrl').value.trim(), pin: $('#cPin').value, lat: +$('#cLat').value || cfg.lat, lon: +$('#cLon').value || cfg.lon };
-  sv('cfg', cfg); $('#dlg').close(); getWeather(); load();
-};
-$('#geo').onclick = () => navigator.geolocation ? navigator.geolocation.getCurrentPosition(p => { $('#cLat').value = p.coords.latitude.toFixed(4); $('#cLon').value = p.coords.longitude.toFixed(4); }, () => toast('ไม่ได้รับอนุญาตใช้ตำแหน่ง')) : toast('เครื่องนี้ไม่รองรับ');
 
+$('#dt').value = $('#dt').max = todayISO();
 $('#today').textContent = fmtD(todayISO());
+$('#dt').onchange = () => {
+  const el = $('#dt'); if (!el.value || el.value > todayISO()) el.value = todayISO();
+  $('#today').textContent = fmtD(el.value); getWeather(el.value);
+};
+if (SHEET_URL) { const a = $('#openSheet'); a.href = SHEET_URL; a.style.display = 'block'; }
 $('#hd').textContent = 'บันทึกโดยเจ้าของสวน';
 getWeather(); renderAll();
-if (cfg.url && cfg.pin) load(); else setTimeout(() => $('#dlg').showModal(), 300);
+load();
 </script>
 </body>
 </html>
