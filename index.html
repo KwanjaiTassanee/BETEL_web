@@ -140,11 +140,30 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 <div class="msg" id="msg"></div>
 
 
+<dialog id="eDlg">
+  <h2>แก้ไขรายการ</h2>
+  <label style="margin-top:0">วันที่ขาย</label>
+  <input type="date" id="eDt">
+  <label>ขายเป็น</label>
+  <div class="seg"><button id="eKg" type="button">กิโลกรัม (กก.)</button><button id="eGam" type="button">กำ</button></div>
+  <label id="eQL">จำนวน</label>
+  <input id="eQty" type="number" inputmode="decimal" min="0" step="any">
+  <label id="ePL">ราคาต่อหน่วย (บาท)</label>
+  <input id="ePrice" type="number" inputmode="decimal" min="0" step="any">
+  <div class="total" id="eTot">฿0</div>
+  <label>ผู้ซื้อ / แหล่งขาย</label>
+  <input id="eBuyer">
+  <label>หมายเหตุ</label>
+  <textarea id="eNote" rows="2"></textarea>
+  <div class="hint" id="eHint" style="margin-top:6px"></div>
+  <button class="btn" id="eSave">บันทึกการแก้ไข</button>
+  <button class="btn alt" id="eClose">ยกเลิก</button>
+</dialog>
 <script>
 /* ===== แก้ลิงก์ตรงนี้ ===== */
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzGkMRQD8oyUvH0p5yJco1EVIdC4VQ5xLWVcSCFjubKJ2oRg4MZH_Hu_M3zGdBJAFRm/exec';  // วางลิงก์ Web app ของ Apps Script (ลงท้าย /exec) ระหว่างเครื่องหมาย ' '
 const APP_PIN = '123456';          // รหัสเดียวกับ PIN ใน Code.gs
-const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1IxSp0axaDNw4El14AWn18X94NK-1QwGLHP_ff30_oPM/edit?usp=sharing';        // วางลิงก์ Google Sheet (ไม่บังคับ) ไว้ใช้กดเปิดดูข้อมูลดิบ
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1IxSp0axaDNw4El14AWn18X94NK-1QwGLHP_ff30_oPM/edit?usp=sharing';  
 /* ======================== */
 const $ = s => document.querySelector(s);
 const TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
@@ -154,6 +173,7 @@ const ld = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) 
 const sv = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 
 let cfg = Object.assign({ lat: 7.0086, lon: 100.4747, place: 'อ.หาดใหญ่ จ.สงขลา (ค่าตั้งต้น)' }, ld('cfg'));
+const NEED_VER = 3;
 let rows = ld('rows') || [], unit = 'kg', W = null, chart = null, chartMonths = [];
 
 const todayISO = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
@@ -170,6 +190,7 @@ async function api(action, extra = {}) {
   const r = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ pin: APP_PIN, action, ...extra }) });
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || 'เกิดข้อผิดพลาด');
+  if (action === 'list' || action === 'add') api.ver = j.version || 0;
   return j;
 }
 
@@ -240,9 +261,13 @@ async function save() {
   if (!(qty > 0) || !(price > 0)) return toast('กรอกจำนวนและราคาก่อน');
   const b = $('#save'); b.disabled = true; b.textContent = 'กำลังบันทึก…';
   try {
-    await api('add', { data: { date: $('#dt').value, unit, qty, price, buyer: $('#buyer').value, note: $('#note').value, ...(W || {}) } });
+    const j = await api('add', { data: { date: $('#dt').value, unit, qty, price, buyer: $('#buyer').value, note: $('#note').value, ...(W || {}) } });
     ['qty', 'price', 'buyer', 'note'].forEach(i => $('#' + i).value = ''); calc();
-    toast('บันทึกแล้ว ✓'); pendHM = $('#dt').value.slice(0, 7); await load();
+    const want = $('#dt').value;
+    pendHM = want.slice(0, 7); await load();
+    if ((j.version || 0) < NEED_VER || (j.date && j.date !== want)) {
+      alert('⚠️ รายการนี้ถูกบันทึกเป็นวันที่ ' + fmtD(j.date || todayISO()) + ' ไม่ใช่วันที่ ' + fmtD(want) + '\n\nสาเหตุ: Google Apps Script ยังเป็นเวอร์ชันเก่า\nวิธีแก้: วางโค้ด Code.gs ล่าสุด แล้วกด Deploy → จัดการการทำให้ใช้งานได้ → แก้ไข → เวอร์ชันใหม่\n\nระหว่างนี้แก้วันที่ได้ที่ปุ่ม "แก้ไข" ในหน้ารายการ (หลังอัปเดตแล้ว)');
+    } else toast('บันทึกแล้ว ✓');
   } catch (e) { toast(e.message); }
   b.disabled = false; b.textContent = 'บันทึกการขาย';
 }
@@ -263,7 +288,7 @@ function renderHis() {
       <small>${r.buyer || ''}${r.buyer && r.note ? ' · ' : ''}${r.note || ''}</small>
       <small>${r.weather || 'ไม่มีข้อมูลอากาศ'}${r.temp !== '' && r.temp != null ? ' · ' + r.temp + '°C' : ''}</small>
       ${r.place ? `<small>📍 ${r.place}</small>` : ''}
-      <button class="del" data-id="${r.id}">ลบรายการนี้</button></div><b>${baht(r.total)}</b></div>`).join('');
+      <button class="del" data-edit="${r.id}" style="color:var(--leaf);margin-right:16px">✏️ แก้ไข</button><button class="del" data-id="${r.id}">ลบรายการนี้</button></div><b>${baht(r.total)}</b></div>`).join('');
   }).join('') : '<div class="empty">ยังไม่มีรายการในเดือนนี้</div>';
 }
 
@@ -347,7 +372,52 @@ $('#chips').onclick = e => {
   else chartMonths.push(m);
   renderChips(); renderChart();
 };
+/* ---------- แก้ไขรายการ ---------- */
+let eRow = null, eUnit = 'kg';
+const eCalc = () => $('#eTot').textContent = baht($('#eQty').value * $('#ePrice').value);
+function eSetUnit(u) {
+  eUnit = u; $('#eKg').classList.toggle('on', u === 'kg'); $('#eGam').classList.toggle('on', u === 'gam');
+  $('#eQL').textContent = `จำนวน (${uTxt(u)})`; $('#ePL').textContent = `ราคาต่อ ${uTxt(u)} (บาท)`; eCalc();
+}
+function openEdit(id) {
+  eRow = rows.find(r => String(r.id) === String(id)); if (!eRow) return;
+  $('#eDt').value = eRow.date; $('#eDt').max = todayISO();
+  $('#eQty').value = eRow.qty; $('#ePrice').value = eRow.price;
+  $('#eBuyer').value = eRow.buyer || ''; $('#eNote').value = eRow.note || '';
+  $('#eHint').textContent = 'ถ้าเปลี่ยนวันที่ ระบบจะดึงสภาพอากาศของวันนั้นให้ใหม่ (ใช้สถานที่เดิมของรายการ)';
+  eSetUnit(eRow.unit); $('#eDlg').showModal();
+}
+async function wxFetch(date, lat, lon) {
+  const ago = (new Date(todayISO()) - new Date(date)) / 864e5;
+  const host = ago <= 80 ? 'https://api.open-meteo.com/v1/forecast' : 'https://archive-api.open-meteo.com/v1/archive';
+  const u = `${host}?latitude=${lat}&longitude=${lon}&start_date=${date}&end_date=${date}&daily=weather_code,temperature_2m_mean,relative_humidity_2m_mean,precipitation_sum&timezone=Asia%2FBangkok`;
+  const d = (await (await fetch(u)).json()).daily;
+  if (!d || d.weather_code[0] == null) throw new Error('no data');
+  return { temp: d.temperature_2m_mean[0], humidity: Math.round(d.relative_humidity_2m_mean[0]), rain: d.precipitation_sum[0], weather: wDesc(d.weather_code[0]) };
+}
+$('#eKg').onclick = () => eSetUnit('kg'); $('#eGam').onclick = () => eSetUnit('gam');
+$('#eQty').oninput = $('#ePrice').oninput = eCalc;
+$('#eClose').onclick = () => $('#eDlg').close();
+$('#eSave').onclick = async () => {
+  const qty = +$('#eQty').value, price = +$('#ePrice').value, date = $('#eDt').value;
+  if (!date || date > todayISO()) return toast('เลือกวันที่ไม่ถูกต้อง');
+  if (!(qty > 0) || !(price > 0)) return toast('กรอกจำนวนและราคาก่อน');
+  const b = $('#eSave'); b.disabled = true; b.textContent = 'กำลังบันทึก…';
+  try {
+    const data = { date, unit: eUnit, qty, price, buyer: $('#eBuyer').value, note: $('#eNote').value };
+    if (date !== eRow.date) {
+      b.textContent = 'กำลังดึงสภาพอากาศ…';
+      try { Object.assign(data, await wxFetch(date, eRow.lat || cfg.lat, eRow.lon || cfg.lon)); }
+      catch (e) { Object.assign(data, { temp: '', humidity: '', rain: '', weather: '' }); }
+    }
+    const j = await api('update', { id: eRow.id, data });
+    if ((j.version || 0) < NEED_VER) throw new Error('Apps Script ยังเป็นเวอร์ชันเก่า กรุณา Deploy Code.gs ล่าสุด');
+    $('#eDlg').close(); pendHM = date.slice(0, 7); await load(); toast('แก้ไขแล้ว ✓');
+  } catch (e) { toast(e.message.includes('คำสั่งไม่ถูกต้อง') ? 'Apps Script ยังเป็นเวอร์ชันเก่า กรุณา Deploy Code.gs ล่าสุด' : e.message); }
+  b.disabled = false; b.textContent = 'บันทึกการแก้ไข';
+};
 $('#hisList').onclick = async e => {
+  if (e.target.dataset.edit) return openEdit(e.target.dataset.edit);
   const id = e.target.dataset.id; if (!id || !confirm('ลบรายการนี้ใช่ไหม?')) return;
   try { await api('delete', { id }); toast('ลบแล้ว'); load(); } catch (er) { toast(er.message); }
 };
