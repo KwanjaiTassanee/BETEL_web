@@ -119,7 +119,6 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     <button class="btn alt" id="exMonth" style="margin-top:0">📄 ไฟล์ Excel (CSV) เดือนที่เลือก</button>
     <button class="btn alt" id="exAll">📄 ไฟล์ Excel (CSV) ทั้งหมด</button>
     <button class="btn alt" id="exPdf">🖨️ บันทึกสรุปเป็น PDF</button>
-    <a class="btn alt" id="openSheet" href="#" target="_blank" rel="noopener" style="display:none;text-align:center;text-decoration:none;box-sizing:border-box">📗 เปิด Google Sheet</a>
   </div>
 </section>
 
@@ -161,9 +160,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 </dialog>
 <script>
 /* ===== แก้ลิงก์ตรงนี้ ===== */
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzGkMRQD8oyUvH0p5yJco1EVIdC4VQ5xLWVcSCFjubKJ2oRg4MZH_Hu_M3zGdBJAFRm/exec';  // วางลิงก์ Web app ของ Apps Script (ลงท้าย /exec) ระหว่างเครื่องหมาย ' '
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby_2xuvcYK_PTzeObAbNgpTGCTyWg3vU8QFwYX1Ws3NiXinlWtlfJvXXHGH81IuB2YX/exec';  // วางลิงก์ Web app ของ Apps Script (ลงท้าย /exec) ระหว่างเครื่องหมาย ' '
 const APP_PIN = '123456';          // รหัสเดียวกับ PIN ใน Code.gs
-const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1IxSp0axaDNw4El14AWn18X94NK-1QwGLHP_ff30_oPM/edit?usp=sharing';  
 /* ======================== */
 const $ = s => document.querySelector(s);
 const TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
@@ -173,7 +171,7 @@ const ld = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) 
 const sv = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 
 let cfg = Object.assign({ lat: 7.0086, lon: 100.4747, place: 'อ.หาดใหญ่ จ.สงขลา (ค่าตั้งต้น)' }, ld('cfg'));
-const NEED_VER = 3;
+const NEED_VER = 3; // รุ่น 4 เพิ่มเวลาบันทึกสำหรับรายการย้อนหลัง
 let rows = ld('rows') || [], unit = 'kg', W = null, chart = null, chartMonths = [];
 
 const todayISO = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
@@ -432,7 +430,6 @@ $('#dt').onchange = () => {
   const el = $('#dt'); if (!el.value || el.value > todayISO()) el.value = todayISO();
   $('#today').textContent = fmtD(el.value); getWeather(el.value);
 };
-if (SHEET_URL) { const a = $('#openSheet'); a.href = SHEET_URL; a.style.display = 'block'; }
 $('#hd').textContent = 'บันทึกโดยเจ้าของสวน';
 getWeather(); renderAll();
 load();
